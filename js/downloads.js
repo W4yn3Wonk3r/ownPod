@@ -101,35 +101,42 @@ class DownloadManager {
 
         // Use Service Worker to download and cache
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            // Send message to Service Worker
-            navigator.serviceWorker.controller.postMessage({
-                type: 'DOWNLOAD_AUDIO',
-                url: audioUrl,
-                id: episodeId
-            });
+            try {
+                // Send message to Service Worker
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'DOWNLOAD_AUDIO',
+                    url: audioUrl,
+                    id: episodeId
+                });
 
-            // Wait for Service Worker to complete
-            return new Promise((resolve, reject) => {
-                const messageHandler = (event) => {
-                    if (event.data.type === 'DOWNLOAD_COMPLETE' && event.data.episodeId === episodeId) {
+                // Wait for Service Worker to complete
+                await new Promise((resolve, reject) => {
+                    const messageHandler = (event) => {
+                        if (event.data.type === 'DOWNLOAD_COMPLETE' && event.data.episodeId === episodeId) {
+                            navigator.serviceWorker.removeEventListener('message', messageHandler);
+                            resolve();
+                        } else if (event.data.type === 'DOWNLOAD_ERROR' && event.data.episodeId === episodeId) {
+                            navigator.serviceWorker.removeEventListener('message', messageHandler);
+                            reject(new Error(event.data.error));
+                        }
+                    };
+
+                    navigator.serviceWorker.addEventListener('message', messageHandler);
+
+                    // Timeout after 5 minutes
+                    setTimeout(() => {
                         navigator.serviceWorker.removeEventListener('message', messageHandler);
-                        resolve();
-                    } else if (event.data.type === 'DOWNLOAD_ERROR' && event.data.episodeId === episodeId) {
-                        navigator.serviceWorker.removeEventListener('message', messageHandler);
-                        reject(new Error(event.data.error));
-                    }
-                };
-
-                navigator.serviceWorker.addEventListener('message', messageHandler);
-
-                // Timeout after 5 minutes
-                setTimeout(() => {
-                    navigator.serviceWorker.removeEventListener('message', messageHandler);
-                    reject(new Error('Download timeout'));
-                }, 5 * 60 * 1000);
-            });
+                        reject(new Error('Download timeout'));
+                    }, 5 * 60 * 1000);
+                });
+            } catch (swError) {
+                console.warn('Service Worker download failed, trying direct download:', swError);
+                // Fallback to direct download if Service Worker fails
+                await this.directDownload(audioUrl, episodeId);
+            }
         } else {
             // Fallback: Direct download (no caching)
+            console.log('Service Worker not available, using direct download');
             await this.directDownload(audioUrl, episodeId);
         }
     }

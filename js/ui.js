@@ -6,6 +6,16 @@ class UIManager {
         this.modals = {};
     }
 
+    // Get app instance safely
+    getApp() {
+        console.log('getApp() called, window.ownPodApp:', window.ownPodApp);
+        if (!window.ownPodApp) {
+            console.error('window.ownPodApp is undefined!');
+            throw new Error('App not initialized');
+        }
+        return window.ownPodApp;
+    }
+
     // Initialize UI
     init() {
         this.setupTabs();
@@ -170,7 +180,13 @@ class UIManager {
                     }
 
                     // Call the app's addFeed method
-                    await window.ownPodApp.addFeed(feedUrl);
+                    try {
+                        const app = this.getApp();
+                        await app.addFeed(feedUrl);
+                    } catch (error) {
+                        console.error('Error adding feed:', error);
+                        this.showNotification('Fehler: ' + error.message, 'error');
+                    }
                 });
             });
 
@@ -388,20 +404,53 @@ class UIManager {
                 const episode = await podcastDB.getEpisode(download.episodeId);
                 const podcast = await podcastDB.getPodcast(episode.podcastId);
 
+                const isCompleted = download.status === 'completed';
+
                 return `
-                    <div class="download-item">
+                    <div class="download-item" data-episode-id="${download.episodeId}">
                         <h4>${this.escapeHtml(episode.title)}</h4>
                         <p>${this.escapeHtml(podcast.title)}</p>
                         <div class="download-progress">
                             <div class="download-progress-bar" style="width: ${download.progress}%"></div>
                         </div>
-                        <p>Status: ${download.status === 'completed' ? 'Abgeschlossen' : 'Lädt...'}</p>
+                        <p>Status: ${isCompleted ? 'Abgeschlossen' : 'Lädt...'}</p>
+                        ${isCompleted ? `
+                            <div class="download-actions">
+                                <button class="btn-small btn-refresh play-download" data-id="${download.episodeId}">Abspielen</button>
+                                <button class="btn-small btn-delete delete-download" data-id="${download.episodeId}">Löschen</button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             })
         );
 
         container.innerHTML = downloadItems.join('');
+
+        // Add event listeners for play buttons
+        container.querySelectorAll('.play-download').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const episodeId = parseInt(btn.dataset.id);
+                await audioPlayer.loadEpisode(episodeId);
+
+                // Switch to player tab
+                document.querySelector('[data-tab="player"]').click();
+            });
+        });
+
+        // Add event listeners for delete buttons
+        container.querySelectorAll('.delete-download').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const episodeId = parseInt(btn.dataset.id);
+
+                if (confirm('Download wirklich löschen?')) {
+                    await downloadManager.deleteDownload(episodeId);
+                    this.showNotification('Download gelöscht');
+                }
+            });
+        });
     }
 
     // Helper: Escape HTML

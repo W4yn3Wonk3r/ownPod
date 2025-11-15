@@ -184,18 +184,15 @@ class OwnPodApp {
     }
 }
 
-// Initialize app when DOM is ready
-let app;
+// Create app instance immediately
+window.ownPodApp = new OwnPodApp();
+console.log('window.ownPodApp created:', window.ownPodApp);
 
+// Initialize app when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        app = new OwnPodApp();
-        app.init();
+        window.ownPodApp.init();
     });
 } else {
-    app = new OwnPodApp();
-    app.init();
+    window.ownPodApp.init();
 }
-
-// Make app available globally for debugging
-window.ownPodApp = app;

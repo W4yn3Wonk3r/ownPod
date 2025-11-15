@@ -1,18 +1,18 @@
-const CACHE_NAME = 'ownpod-v3';
-const AUDIO_CACHE = 'ownpod-audio-v1';
+const CACHE_NAME = 'ownpod-v4';
+const AUDIO_CACHE = 'ownpod-audio-v2';
 
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/styles.css',
-    '/js/app.js',
-    '/js/db.js',
-    '/js/rss-parser.js',
-    '/js/podcast-search.js',
-    '/js/player.js',
-    '/js/downloads.js',
-    '/js/ui.js',
-    '/manifest.json'
+    './',
+    './index.html',
+    './styles.css',
+    './js/app.js',
+    './js/db.js',
+    './js/rss-parser.js',
+    './js/podcast-search.js',
+    './js/player.js',
+    './js/downloads.js',
+    './js/ui.js',
+    './manifest.json'
 ];
 
 // Install Service Worker
@@ -136,9 +136,29 @@ self.addEventListener('message', (event) => {
 // Download and cache audio
 async function downloadAudio(url, episodeId) {
     try {
-        const response = await fetch(url);
+        console.log('Service Worker: Downloading audio:', url);
+
+        // Try with CORS mode first
+        let response = await fetch(url, {
+            mode: 'cors',
+            credentials: 'omit'
+        }).catch(async (corsError) => {
+            console.log('CORS fetch failed, trying no-cors mode:', corsError);
+            // Fallback to no-cors mode
+            return fetch(url, {
+                mode: 'no-cors'
+            });
+        });
+
+        if (!response || (!response.ok && response.type !== 'opaque')) {
+            throw new Error(`Fetch failed with status: ${response?.status || 'unknown'}`);
+        }
+
+        console.log('Service Worker: Audio fetched, caching...');
         const cache = await caches.open(AUDIO_CACHE);
         await cache.put(url, response.clone());
+
+        console.log('Service Worker: Audio cached successfully');
 
         // Notify the client
         const clients = await self.clients.matchAll();
@@ -150,13 +170,13 @@ async function downloadAudio(url, episodeId) {
             });
         });
     } catch (error) {
-        console.error('Download failed:', error);
+        console.error('Service Worker: Download failed:', error);
         const clients = await self.clients.matchAll();
         clients.forEach((client) => {
             client.postMessage({
                 type: 'DOWNLOAD_ERROR',
                 episodeId: episodeId,
-                error: error.message
+                error: error.message || 'NetworkError when attempting to fetch resource.'
             });
         });
     }
