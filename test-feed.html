@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed Tester</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        input {
+            width: 500px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            color: white;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #output {
+            background: #16213e;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .success { color: #4ecca3; }
+        .error { color: #e94560; }
+        .info { color: #ffd700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Podcast Feed Tester</h1>
+        <p>Teste ob ein Podcast-Feed erreichbar ist</p>
+
+        <div>
+            <input type="text" id="feedUrl"
+                   placeholder="Feed URL eingeben..."
+                   value="https://feeds.lagedernation.org/feeds/ldn-mp3.xml">
+            <button onclick="testFeed()">Test Feed</button>
+            <button onclick="clearOutput()">Clear</button>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${timestamp}] ${message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+
+        async function testFeed() {
+            const feedUrl = document.getElementById('feedUrl').value.trim();
+
+            if (!feedUrl) {
+                log('❌ Bitte Feed URL eingeben', 'error');
+                return;
+            }
+
+            clearOutput();
+            log('🚀 Starte Test für: ' + feedUrl);
+            log('─────────────────────────────────────────', 'info');
+
+            // Test 1: Direct fetch
+            log('\n📡 Test 1: Direkter Abruf...', 'info');
+            try {
+                const response = await fetch(feedUrl);
+                log(`✓ Status: ${response.status} ${response.statusText}`, 'success');
+                const text = await response.text();
+                log(`✓ Länge: ${text.length} Zeichen`, 'success');
+                log(`✓ Preview: ${text.substring(0, 200)}...`, 'success');
+
+                // Try parsing
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+                const parseError = xml.querySelector('parsererror');
+
+                if (parseError) {
+                    log('❌ XML Parse Error', 'error');
+                    log(parseError.textContent, 'error');
+                } else {
+                    const isRSS = xml.querySelector('rss, channel');
+                    const isAtom = xml.querySelector('feed');
+                    log(`✓ Format: ${isRSS ? 'RSS' : isAtom ? 'Atom' : 'Unknown'}`, 'success');
+
+                    if (isRSS) {
+                        const title = xml.querySelector('channel title')?.textContent;
+                        const items = xml.querySelectorAll('item');
+                        log(`✓ Titel: ${title}`, 'success');
+                        log(`✓ Episoden: ${items.length}`, 'success');
+                    }
+                }
+            } catch (error) {
+                log(`❌ Direkter Abruf fehlgeschlagen: ${error.message}`, 'error');
+            }
+
+            // Test 2: CORS Proxies
+            const proxies = [
+                { name: 'AllOrigins', url: 'https://api.allorigins.win/raw?url=' },
+                { name: 'CorsProxy.io', url: 'https://corsproxy.io/?' },
+                { name: 'CodeTabs', url: 'https://api.codetabs.com/v1/proxy?quest=' }
+            ];
+
+            for (let i = 0; i < proxies.length; i++) {
+                const proxy = proxies[i];
+                log(`\n📡 Test ${i + 2}: ${proxy.name}...`, 'info');
+
+                try {
+                    const url = proxy.url + encodeURIComponent(feedUrl);
+                    log(`URL: ${url.substring(0, 100)}...`);
+
+                    const response = await fetch(url);
+                    log(`✓ Status: ${response.status}`, 'success');
+
+                    const text = await response.text();
+                    log(`✓ Länge: ${text.length} Zeichen`, 'success');
+
+                    // Try parsing
+                    const parser = new DOMParser();
+                    const xml = parser.parseFromString(text, 'text/xml');
+                    const parseError = xml.querySelector('parsererror');
+
+                    if (!parseError) {
+                        log(`✓ ${proxy.name} funktioniert!`, 'success');
+                    } else {
+                        log(`❌ XML Parse Error mit ${proxy.name}`, 'error');
+                    }
+                } catch (error) {
+                    log(`❌ ${proxy.name} fehlgeschlagen: ${error.message}`, 'error');
+                }
+            }
+
+            log('\n─────────────────────────────────────────', 'info');
+            log('✅ Test abgeschlossen', 'success');
+        }
+
+        // Auto-run on Enter
+        document.getElementById('feedUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') testFeed();
+        });
+
+        log('Bereit zum Testen. Feed URL eingeben und "Test Feed" klicken.');
+    </script>
+</body>
+</html>

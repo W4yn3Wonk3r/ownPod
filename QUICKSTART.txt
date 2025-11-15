@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                          OWNPOD                                  ║
+║                   Podcast Player PWA                             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+SCHNELLSTART
+────────────────────────────────────────────────────────────────────
+
+1. Server starten:
+   ./start.sh
+   
+   Oder manuell:
+   python3 -m http.server 8000
+
+2. Browser öffnen:
+   http://localhost:8000
+
+3. Podcast hinzufügen:
+   Klicke auf "+" und gib eine RSS Feed URL ein
+   
+   Test-Feed:
+   https://feeds.lagedernation.org/feeds/ldn-mp3.xml
+
+FEATURES
+────────────────────────────────────────────────────────────────────
+✓ RSS/Atom Feed Parser
+✓ Offline Downloads (Service Worker)
+✓ Audio Player (±30s skip, 0.5x-2x speed)
+✓ Sleep Timer
+✓ Fortschritts-Speicherung
+✓ PWA (installierbar)
+✓ Lokale Datenbank (IndexedDB)
+
+DATEIEN
+────────────────────────────────────────────────────────────────────
+index.html          - Haupt-UI
+styles.css          - Styling
+manifest.json       - PWA Manifest
+sw.js              - Service Worker
+
+js/app.js          - App-Initialisierung
+js/db.js           - IndexedDB Manager
+js/rss-parser.js   - Feed Parser
+js/player.js       - Audio Player
+js/downloads.js    - Download Manager
+js/ui.js           - UI Manager
+
+TECHNOLOGIE
+────────────────────────────────────────────────────────────────────
+- Vanilla JavaScript (kein Framework)
+- IndexedDB (lokale Datenbank)
+- Service Workers (Offline-Support)
+- Web Audio API
+- Media Session API
+- Progressive Web App
+
+DOKUMENTATION
+────────────────────────────────────────────────────────────────────
+README.md          - Vollständige Dokumentation
+INSTALL.md         - Installations-Anleitung
+QUICKSTART.txt     - Diese Datei
+
+Viel Erfolg! 🎧
